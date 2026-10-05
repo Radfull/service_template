@@ -14,9 +14,9 @@
 * kubectl get pods 
 
 # Скрины:
-![alt text](images\image.png)
-![alt text](images\image2.png)
-![alt text](images\image3.png)
-![alt text](images\image4.png)
-![alt text](images\image5.png)
-![alt text](images\image6.png)
+![alt text](images/image.png)
+![alt text](images/image2.png)
+![alt text](images/image3.png)
+![alt text](images/image4.png)
+![alt text](images/image5.png)
+![alt text](images/image6.png)
