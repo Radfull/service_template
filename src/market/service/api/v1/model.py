@@ -1,12 +1,13 @@
 import time
-from fastapi import APIRouter, Depends, Request
+
 import pandas as pd
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from market.service import cruds
 from market.service.db.db_helper import get_session
 from market.service.schemas.features import Features
 from market.service.schemas.predictions import PredictionCreate
-from market.service import cruds
 
 model_router = APIRouter(prefix="/v1", tags=["model"])
 

@@ -1,6 +1,6 @@
 [project]
 name = "market-service"
-version = "0.3"
+version = "0.4"
 description = "ML Service for classification of customers"
 requires-python=">=3.11,<3.13"
 
@@ -23,7 +23,6 @@ dependencies = [
     "scipy>=1.17.1",
     "pyarrow>=25.0.1",
     "dvc[s3]>=3.67.1",
-    "logging",
     "asyncpg",
     "greenlet"
 ]
@@ -47,3 +46,8 @@ module-name = "market"
 testpaths = ["tests"]
 markers = ["integration: нужна база данных - адрес в DATABASE_URL"]
 
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

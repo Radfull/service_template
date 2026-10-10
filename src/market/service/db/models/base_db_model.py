@@ -1,5 +1,6 @@
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+
 class BaseDbModel(DeclarativeBase):
     __abstract__ = True
 

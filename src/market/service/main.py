@@ -1,13 +1,14 @@
+import logging
+from contextlib import asynccontextmanager
+
+import joblib
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from contextlib import asynccontextmanager
-import logging
-import joblib
 
 from market.config import settings
+from market.service.api.v1.model import model_router
 from market.service.db.db_helper import db_helper
 from market.service.db.models.base_db_model import BaseDbModel
-from market.service.api.v1.model import model_router
 
 logger = logging.getLogger(__name__)
 

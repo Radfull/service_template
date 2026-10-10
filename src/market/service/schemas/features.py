@@ -1,4 +1,5 @@
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
 
 class Features(BaseModel):
     model_config = ConfigDict(extra="forbid") 
