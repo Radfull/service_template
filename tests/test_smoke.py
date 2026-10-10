@@ -1,5 +1,6 @@
 import pytest
 
+
 def test_predict_smoke(client, good_row):
     r = client.post("/v1/predict", json=good_row)
     assert r.status_code == 200

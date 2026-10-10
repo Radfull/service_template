@@ -1,10 +1,12 @@
-from sqlalchemy import DateTime, func
-from sqlalchemy.orm import Mapped, mapped_column
 from datetime import datetime
-from sqlalchemy.dialects.postgresql import JSONB
 from typing import Any
 
+from sqlalchemy import DateTime, func
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column
+
 from .base_db_model import BaseDbModel
+
 
 class Predictions(BaseDbModel):
     __tablename__ = "predictions"
