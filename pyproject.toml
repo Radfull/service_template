@@ -1,6 +1,6 @@
 [project]
 name = "market-service"
-version = "0.3"
+version = "0.4"
 description = "ML Service for classification of customers"
 requires-python=">=3.11,<3.13"
 
