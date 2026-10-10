@@ -23,7 +23,6 @@ dependencies = [
     "scipy>=1.17.1",
     "pyarrow>=25.0.1",
     "dvc[s3]>=3.67.1",
-    "logging",
     "asyncpg",
     "greenlet"
 ]
