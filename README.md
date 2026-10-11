@@ -1,5 +1,5 @@
 # service_template
-# Команды:
+# Команды для локального запуска:
 
 0) uv sync
 
@@ -12,6 +12,13 @@
 * kubectl apply -f k8s/
 * Запуск в отдельном терминале тунель: kubectl port-forward svc/market-service 8080:80
 * kubectl get pods 
+
+# Работа с git
+
+0) git checkout -b test-branch - Создание новой ветки для тестов
+
+1) git push -u origin test-branch - -u флаг устанавливает восходящую связь. В следующий раз достаточно будет выполнить git push, не указывая ветку.
+
 
 # Скрины:
 ![alt text](images/image.png)
