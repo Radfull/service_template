@@ -10,7 +10,7 @@ dependencies = [
     "pydantic",
     "pydantic-settings",
     "pandas",
-    "scikit-learn>=1.6",
+    "scikit-learn==1.9.0",
     "joblib",
     "sqlalchemy",
     "psycopg[binary]",
