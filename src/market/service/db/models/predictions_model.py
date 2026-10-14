@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from typing import Any
 
@@ -11,6 +12,9 @@ from .base_db_model import BaseDbModel
 class Predictions(BaseDbModel):
     __tablename__ = "predictions"
 
+    request_id: Mapped[uuid.UUID] = mapped_column(
+        unique=True, index=True, default=uuid.uuid4
+    )
     time: Mapped[datetime] = mapped_column(
         DateTime,
         server_default=func.now()
