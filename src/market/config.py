@@ -1,5 +1,6 @@
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings
-from pydantic import Field, AliasChoices 
+
 
 class Settings(BaseSettings):
     model_path: str = "artifacts/model_v1.0.joblib"

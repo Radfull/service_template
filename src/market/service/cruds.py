@@ -36,12 +36,14 @@ async def get_prediction(
 async def create_prediction(
     session: AsyncSession | None,
     pred_in: PredictionCreate,
-) -> Predictions:
+) -> Predictions | None:
+    if session is None:
+        return None
+    
     pred = Predictions(**pred_in.model_dump())
-    if session is not None:
-        session.add(pred)
-        await session.commit()
-        await session.refresh(pred)
+    session.add(pred)
+    await session.commit()
+    await session.refresh(pred)
     return pred
 
 

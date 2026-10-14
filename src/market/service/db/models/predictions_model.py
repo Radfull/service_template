@@ -1,14 +1,20 @@
-from sqlalchemy import DateTime, func
-from sqlalchemy.orm import Mapped, mapped_column
+import uuid
 from datetime import datetime
-from sqlalchemy.dialects.postgresql import JSONB
 from typing import Any
 
+from sqlalchemy import DateTime, func
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column
+
 from .base_db_model import BaseDbModel
+
 
 class Predictions(BaseDbModel):
     __tablename__ = "predictions"
 
+    request_id: Mapped[uuid.UUID] = mapped_column(
+        unique=True, index=True, default=uuid.uuid4
+    )
     time: Mapped[datetime] = mapped_column(
         DateTime,
         server_default=func.now()
