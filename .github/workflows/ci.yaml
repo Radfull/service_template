@@ -104,7 +104,7 @@ jobs:
           grep -q '"model_path"' health.json
 
           curl --fail -s -X POST localhost:8080/v1/predict \
-            -H "Content-Type: application/json" -d @k8s/good.json | tee pred.json; echo
+            -H "Content-Type: application/json" -d @tests/good.json | tee pred.json; echo
 
           python3 -c "
           import json
