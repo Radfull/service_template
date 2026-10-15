@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: market-config
+data:
+  LOG_LEVEL: "INFO"
+  MODEL_PATH: artifacts/model_v1.0.joblib
