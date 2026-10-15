@@ -17,15 +17,16 @@ jobs:
           --health-interval 5s --health-timeout 3s --health-retries 10
     env:
       DATABASE_URL: postgresql://postgres:test@localhost:5432/market
+      DB_URL: postgresql+asyncpg://postgres:test@localhost:5432/market
 
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with: {enable-cache: true}
       - run: uv sync --frozen
-      - run: uv run ruff check . --exit-zero
+      - run: uv run ruff check .
       - run: uv run pytest
-      
+
   build:
     needs: tests
     if: github.ref == 'refs/heads/main'
@@ -47,3 +48,98 @@ jobs:
           tags: ${{ env.IMAGE }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, kind]
+    concurrency: {group: deploy-kind}
+    timeout-minutes: 10
+    permissions: {contents: read, packages: read}
+    env:
+      KIND_CLUSTER: sem4
+    steps:
+      - uses: actions/checkout@v7
+      - run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA}" >> "$GITHUB_ENV"
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: kind и kubectl
+        run: |
+          B=~/.local/bin && mkdir -p $B && echo "$B" >> "$GITHUB_PATH"
+          [ -x $B/kind ] || curl -sSLo $B/kind https://kind.sigs.k8s.io/dl/v0.33.0/kind-linux-amd64
+          [ -x $B/kubectl ] || curl -sSLo $B/kubectl https://dl.k8s.io/v1.37.0/bin/linux/amd64/kubectl
+          chmod +x $B/kind $B/kubectl
+          $B/kind export kubeconfig --name "$KIND_CLUSTER" --internal
+          $B/kubectl get nodes
+
+      - name: образ в кластер
+        run: |
+          docker pull "$IMAGE"
+          kind load docker-image "$IMAGE" --name "$KIND_CLUSTER"
+
+      - name: секрет
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          kubectl create secret generic market-secrets \
+            --from-literal=POSTGRES_PASSWORD="$DB_PASSWORD" \
+            --from-literal=DATABASE_URL="postgresql+asyncpg://postgres:$DB_PASSWORD@postgres:5432/market" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: база
+        run: |
+          kubectl apply -f k8s/postgres.yaml
+          kubectl rollout status deploy/postgres --timeout=180s
+
+      - name: сервис
+        run: |
+          kubectl apply -f k8s/
+          kubectl set image deploy/market-service api="$IMAGE"
+          kubectl rollout status deploy/market-service --timeout=180s
+
+      - name: smoke
+        run: |
+          kubectl port-forward svc/market-service 8080:80 &
+          sleep 3
+
+          curl --fail -s localhost:8080/health | tee health.json; echo
+          grep -q '"model_path"' health.json
+
+          curl --fail -s -X POST localhost:8080/v1/predict \
+            -H "Content-Type: application/json" -d @k8s/good.json | tee pred.json; echo
+
+          python3 -c "
+          import json
+          r = json.load(open('pred.json'))
+          probs = r['probs']
+          assert set(probs) == {'A','B','C','D'}, probs
+          assert all(0 <= v <= 1 for v in probs.values()), probs
+          assert abs(sum(probs.values()) - 1) < 1e-6, probs
+          assert r['segmentation'] == max(probs, key=probs.get), r
+          assert r['http_status'] == 200, r
+          "
+
+          sleep 2
+          RID=$(jq -r .request_id pred.json)
+          kubectl exec deploy/postgres -- psql -U postgres -d market \
+            -tAc "SELECT count(*) FROM predictions WHERE request_id = '$RID'" | grep -qx 1
+
+          curl -s -o bad.json -w '%{http_code}' -X POST localhost:8080/v1/predict \
+            -H "Content-Type: application/json" \
+            -d '{"Age":-1,"Work_Experience":0,"Family_Size":1,"Gender":0,"Ever_Married":0,"Graduated":0,"Spending_Score":0}' \
+            | grep -qx 422
+
+      - name: диагностика
+        if: failure()
+        run: |
+          kubectl get pods -A -o wide
+          kubectl get events -A --sort-by=.lastTimestamp | tail -30
+          kubectl describe deploy/market-service | tail -30
+          kubectl describe deploy/postgres | tail -30
+          kubectl logs deploy/market-service --tail=100 --all-containers || true
+          kubectl logs deploy/market-service --tail=100 --previous --all-containers || true
+          kubectl logs deploy/postgres --tail=50 || true
