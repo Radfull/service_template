@@ -2,11 +2,11 @@ name: ci
 on:
   push: {branches: [main]}
   pull_request:
-  workflow_dispatch:
 
 jobs:
   tests:
     runs-on: ubuntu-latest
+
     services:
       postgres:
         image: postgres:16
@@ -15,6 +15,7 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 5s --health-timeout 3s --health-retries 10
+
     env:
       DATABASE_URL: postgresql://postgres:test@localhost:5432/market
       DB_URL: postgresql+asyncpg://postgres:test@localhost:5432/market
@@ -31,7 +32,9 @@ jobs:
     needs: tests
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+
     permissions: {contents: read, packages: write}
+
     steps:
       - uses: actions/checkout@v7
       - run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA}" >> "$GITHUB_ENV"
@@ -52,12 +55,10 @@ jobs:
   deploy:
     needs: build
     if: github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, kind]
-    concurrency: {group: deploy-kind}
-    timeout-minutes: 10
+    runs-on: ubuntu-latest
+
     permissions: {contents: read, packages: read}
-    env:
-      KIND_CLUSTER: sem4
+
     steps:
       - uses: actions/checkout@v7
       - run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA}" >> "$GITHUB_ENV"
@@ -67,28 +68,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: kind и kubectl
-        run: |
-          B=~/.local/bin && mkdir -p $B && echo "$B" >> "$GITHUB_PATH"
-          [ -x $B/kind ] || curl -sSLo $B/kind https://kind.sigs.k8s.io/dl/v0.33.0/kind-linux-amd64
-          [ -x $B/kubectl ] || curl -sSLo $B/kubectl https://dl.k8s.io/v1.37.0/bin/linux/amd64/kubectl
-          chmod +x $B/kind $B/kubectl
-          $B/kind export kubeconfig --name "$KIND_CLUSTER" --internal
-          $B/kubectl get nodes
+      - uses: helm/kind-action@v1
+        with: {cluster_name: ci}
 
       - name: образ в кластер
         run: |
           docker pull "$IMAGE"
-          kind load docker-image "$IMAGE" --name "$KIND_CLUSTER"
+          kind load docker-image "$IMAGE" --name ci
 
-      - name: секрет
+      - name: подтягиваем секреты
         env:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
           kubectl create secret generic market-secrets \
             --from-literal=POSTGRES_PASSWORD="$DB_PASSWORD" \
-            --from-literal=DATABASE_URL="postgresql+asyncpg://postgres:$DB_PASSWORD@postgres:5432/market" \
-            --dry-run=client -o yaml | kubectl apply -f -
+            --from-literal=DATABASE_URL="postgresql+asyncpg://postgres:$DB_PASSWORD@postgres:5432/market"
 
       - name: база
         run: |
@@ -104,9 +98,9 @@ jobs:
       - name: smoke
         run: |
           kubectl port-forward svc/market-service 8080:80 &
-          sleep 3
+          sleep 5
 
-          curl --fail -s localhost:8080/health | tee health.json; echo
+          curl --fail -s --retry 5 --retry-all-errors localhost:8080/health | tee health.json; echo
           grep -q '"model_path"' health.json
 
           curl --fail -s -X POST localhost:8080/v1/predict \
@@ -124,14 +118,15 @@ jobs:
           "
 
           sleep 2
+
           RID=$(jq -r .request_id pred.json)
           kubectl exec deploy/postgres -- psql -U postgres -d market \
             -tAc "SELECT count(*) FROM predictions WHERE request_id = '$RID'" | grep -qx 1
 
-          curl -s -o bad.json -w '%{http_code}' -X POST localhost:8080/v1/predict \
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:8080/v1/predict \
             -H "Content-Type: application/json" \
-            -d '{"Age":-1,"Work_Experience":0,"Family_Size":1,"Gender":0,"Ever_Married":0,"Graduated":0,"Spending_Score":0}' \
-            | grep -qx 422
+            -d '{"age":-1,"work_experience":0,"family_size":1,"gender":0,"ever_married":0,"graduated":0,"spending_score":0}')
+          [ "$code" = 422 ]
 
       - name: диагностика
         if: failure()
@@ -140,6 +135,6 @@ jobs:
           kubectl get events -A --sort-by=.lastTimestamp | tail -30
           kubectl describe deploy/market-service | tail -30
           kubectl describe deploy/postgres | tail -30
-          kubectl logs deploy/market-service --tail=100 --all-containers || true
-          kubectl logs deploy/market-service --tail=100 --previous --all-containers || true
+          kubectl logs deploy/market-service --tail=100 || true
+          kubectl logs deploy/market-service --tail=100 --previous || true
           kubectl logs deploy/postgres --tail=50 || true
