@@ -110,7 +110,11 @@ async def unhandled_handler(request: Request, exc: Exception):
 
 @app.get("/health")
 def check_health():
-    return {"status" : "ok", "service_version" : settings.service_version, "db_allow": db_helper is not None}
+    return {"status" : "ok",
+            "service_version" : settings.service_version,
+            "db_allow": db_helper is not None,
+            "model_path": settings.model_path,
+            "log_level": settings.log_level,}
 
 @app.get("/ready")
 def check_ready():

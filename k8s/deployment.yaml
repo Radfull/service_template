@@ -14,10 +14,24 @@ spec:
     spec:
       containers:
         - name: api
-          image: market-service:v1
+          image: ghcr.io/radfull/service_template:sha-PLACEHOLDER
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: market-config
+          env:
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: market-secrets
+                  key: DATABASE_URL
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: market-secrets
+                  key: DATABASE_URL
           startupProbe:
             httpGet: {path: /health, port: 8000}
             failureThreshold: 30
@@ -29,5 +43,5 @@ spec:
             httpGet: {path: /ready, port: 8000}
             periodSeconds: 5
           resources:
-            requests: {cpu: 100m, memory: 1000Mi}
-            limits: {cpu: "1", memory: 1000Mi}
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {cpu: "1", memory: 512Mi}
