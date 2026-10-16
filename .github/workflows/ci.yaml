@@ -114,7 +114,7 @@ jobs:
           assert all(0 <= v <= 1 for v in probs.values()), probs
           assert abs(sum(probs.values()) - 1) < 1e-6, probs
           assert r['segmentation'] == max(probs, key=probs.get), r
-          assert r['http_status'] == 200, r
+          assert r['response_status'] == 200, r
           "
 
           sleep 2
