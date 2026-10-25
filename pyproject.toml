@@ -24,7 +24,8 @@ dependencies = [
     "pyarrow>=25.0.1",
     "dvc[s3]>=3.67.1",
     "asyncpg",
-    "greenlet"
+    "greenlet",
+    "matplotlib"
 ]
 
 [dependency-groups]
