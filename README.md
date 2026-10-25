@@ -1,4 +1,30 @@
 # service_template
+# Справочник
+
+1) Helm - пакетный менеджер для Kubernetes
+    * helm repo add traefik https://traefik.github.io/charts - добавление в helm репо Traefik
+    * helm repo add prometheus-community https://prometheus-community.github.io/helm-charts - добавление в helm репо prometheus
+    * helm upgrade -  в Kubernetes используется для обновления уже установленного релиза до новой версии чарта (chart) или изменения его конфигурации. Чарт - это пакет, содержащий все необходимые ресурсы для работы приложения в кластере.
+
+2) Kind (Kubernetes IN Docker) - инструмент с открытым исходным кодом. Позволяет развернуть локальный кластер Kubernetes.
+    * kind get clusters - просмотр кластеров
+    * kind create cluster --name [cluster name] --config [path to config file] - создание кластера
+    * kind load docker-image [docker image] --name [cluster name] - копирует локальный Docker-образ  в узлы работающего кластера Kubernetes
+
+3) Docker - это программная платформа с открытым исходным кодом для контейнеризации.
+    * docker pull [image name] - скачивает образ Docker из удалённого реестра в локальную систему.
+    * docker port market-cluster-control-plane -  получение информации о том, какой порт внутри работающего контейнера будет доступен извне для взаимодействия с control plane этого контейнера.
+
+
+4) kubectl - это инструмент командной строки (CLI), который позволяет управлять кластерами Kubernetes.
+    * kubectl apply -f [path to yaml file] - создаёт новые ресурсы или обновляет существующие, приводя кластер в состояние, заданное в файле. 
+    * kubectl get [options] <resource_type>- для получения информации о ресурсах кластера.
+
+5) k9s - это терминальный интерфейс для удобной работы с кластерами Kubernetes прямо из терминала.
+    * k9s -n [namespace] - открыть интерфейс
+
+
+
 # Команды для локального запуска:
 
 0) uv sync
