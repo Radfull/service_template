@@ -35,21 +35,6 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: market-service
-spec:
-  ingressClassName: traefik
-  rules:
-    - host: market.localhost
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service: {name: market-service, port: {number: 80}}
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
   name: grafana
   namespace: monitoring
 spec:

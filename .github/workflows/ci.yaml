@@ -17,6 +17,7 @@ jobs:
           --health-interval 5s --health-timeout 3s --health-retries 10
 
     env:
+      MODEL_NAME: ""
       DATABASE_URL: postgresql://postgres:test@localhost:5432/market
       DB_URL: postgresql+asyncpg://postgres:test@localhost:5432/market
 
@@ -54,78 +55,118 @@ jobs:
 
   deploy:
     needs: build
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: [self-hosted, kind]
+    timeout-minutes: 15
+    concurrency:
+      group: market-local-deploy
+      cancel-in-progress: false
 
     permissions: {contents: read, packages: read}
+    defaults:
+      run:
+        shell: bash
+    env:
+      KIND_CLUSTER: market-cluster
+      MODEL_NAME: market_model
+      MODEL_ALIAS: champion
+      INGRESS_HOST: market.localhost
 
     steps:
       - uses: actions/checkout@v7
-      - run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA}" >> "$GITHUB_ENV"
+
+      - name: доступ к локальному кластеру
+        run: |
+          set -euo pipefail
+          echo "Runner name: $RUNNER_NAME"
+          for tool in docker kind kubectl curl python3 jq; do
+            command -v "$tool"
+          done
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA}" >> "$GITHUB_ENV"
+          export KUBECONFIG="$RUNNER_TEMP/market-kubeconfig"
+          kind get kubeconfig --name "$KIND_CLUSTER" --internal > "$KUBECONFIG"
+          chmod 600 "$KUBECONFIG"
+          kubectl config set-context --current --namespace=default
+          echo "KUBECONFIG=$KUBECONFIG" >> "$GITHUB_ENV"
+          echo "INGRESS_URL=http://${KIND_CLUSTER}-control-plane:30080" >> "$GITHUB_ENV"
+          kubectl get nodes
+
       - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: helm/kind-action@v1
-        with: {cluster_name: ci}
-
       - name: образ в кластер
         run: |
+          set -euo pipefail
           docker pull "$IMAGE"
-          kind load docker-image "$IMAGE" --name ci
+          kind load docker-image "$IMAGE" --name "$KIND_CLUSTER"
 
       - name: подтягиваем секреты
         env:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
+          set -euo pipefail
+          test -n "$DB_PASSWORD"
+          DB_CONN=$(python3 -c 'import os; from urllib.parse import quote; print("postgresql+asyncpg://postgres:" + quote(os.environ["DB_PASSWORD"], safe="") + "@postgres:5432/market")')
+          echo "::add-mask::$DB_CONN"
           kubectl create secret generic market-secrets \
             --from-literal=POSTGRES_PASSWORD="$DB_PASSWORD" \
-            --from-literal=DATABASE_URL="postgresql+asyncpg://postgres:$DB_PASSWORD@postgres:5432/market"
+            --from-literal=DATABASE_URL="$DB_CONN" \
+            --dry-run=client -o yaml | kubectl apply -f -
 
       - name: база
         run: |
+          set -euo pipefail
           kubectl apply -f k8s/postgres.yaml
           kubectl rollout status deploy/postgres --timeout=180s
 
       - name: сервис
         run: |
-          kubectl apply -f k8s/
-          kubectl set image deploy/market-service api="$IMAGE"
-          kubectl rollout status deploy/market-service --timeout=180s
+          set -euo pipefail
+          kubectl apply -f k8s/configmap.yaml
+          kubectl apply -f k8s/service.yaml
+          kubectl apply -f k8s/ingress.yaml
+          if [ -f k8s/hpa.yaml ]; then
+            kubectl apply -f k8s/hpa.yaml
+          fi
+          kubectl set image --local -f k8s/deployment.yaml api="$IMAGE" -o yaml | kubectl apply -f -
+          # Refresh environment from ConfigMap and reload the current champion on reruns.
+          kubectl rollout restart deploy/market-service
+          kubectl rollout status deploy/market-service --timeout=300s
 
-      - name: smoke
+      - name: smoke через Ingress
         run: |
-          kubectl port-forward svc/market-service 8080:80 &
-          sleep 5
-
-          curl --fail -s --retry 5 --retry-all-errors localhost:8080/health | tee health.json; echo
-          grep -q '"model_path"' health.json
-
-          curl --fail -s -X POST localhost:8080/v1/predict \
-            -H "Content-Type: application/json" -d @tests/good.json | tee pred.json; echo
-
-          python3 -c "
-          import json
-          r = json.load(open('pred.json'))
-          probs = r['probs']
-          assert set(probs) == {'A','B','C','D'}, probs
-          assert all(0 <= v <= 1 for v in probs.values()), probs
-          assert abs(sum(probs.values()) - 1) < 1e-6, probs
-          assert r['segmentation'] == max(probs, key=probs.get), r
-          assert r['response_status'] == 200, r
-          "
-
-          sleep 2
-
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 1 \
+            --connect-timeout 5 --max-time 15 \
+            -H "Host: $INGRESS_HOST" "$INGRESS_URL/health" -o health.json
+          curl --fail --silent --show-error --connect-timeout 5 --max-time 15 \
+            -H "Host: mlflow.localhost" --get \
+            "$INGRESS_URL/api/2.0/mlflow/registered-models/alias" \
+            --data-urlencode "name=$MODEL_NAME" --data-urlencode "alias=$MODEL_ALIAS" \
+            -o registry.json
+          curl --fail --silent --show-error --connect-timeout 5 --max-time 30 \
+            -X POST -H "Host: $INGRESS_HOST" -H "Content-Type: application/json" \
+            --data-binary @tests/good.json "$INGRESS_URL/v1/predict" -o pred.json
+          python3 scripts/check_deploy.py
           RID=$(jq -r .request_id pred.json)
-          kubectl exec deploy/postgres -- psql -U postgres -d market \
-            -tAc "SELECT count(*) FROM predictions WHERE request_id = '$RID'" | grep -qx 1
-
-          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:8080/v1/predict \
-            -H "Content-Type: application/json" \
-            -d '{"age":-1,"work_experience":0,"family_size":1,"gender":0,"ever_married":0,"graduated":0,"spending_score":0}')
+          ROWS=$(kubectl exec deploy/postgres -- psql -U postgres -d market \
+            -tAc "SELECT count(*) FROM predictions WHERE request_id = '$RID'")
+          test "$ROWS" = "1"
+          echo "Health:"
+          cat health.json
+          echo
+          echo "Prediction:"
+          cat pred.json
+          echo
+          echo "DB rows for request_id=$RID: $ROWS"
+          code=$(curl --silent --show-error --connect-timeout 5 --max-time 15 \
+            -o /dev/null -w '%{http_code}' -X POST \
+            -H "Host: $INGRESS_HOST" -H "Content-Type: application/json" \
+            --data-binary '{"age":-1,"work_experience":0,"family_size":1,"gender":0,"ever_married":0,"graduated":0,"spending_score":0}' \
+            "$INGRESS_URL/v1/predict")
           [ "$code" = 422 ]
 
       - name: диагностика
@@ -135,6 +176,11 @@ jobs:
           kubectl get events -A --sort-by=.lastTimestamp | tail -30
           kubectl describe deploy/market-service | tail -30
           kubectl describe deploy/postgres | tail -30
-          kubectl logs deploy/market-service --tail=100 || true
-          kubectl logs deploy/market-service --tail=100 --previous || true
+          kubectl describe pods -l app=market || true
+          kubectl logs -l app=market --all-containers=true --tail=100 --prefix=true || true
+          kubectl logs -l app=market --all-containers=true --tail=100 --previous --prefix=true || true
           kubectl logs deploy/postgres --tail=50 || true
+
+      - name: удалить временный kubeconfig
+        if: always()
+        run: rm -f "$RUNNER_TEMP/market-kubeconfig"
