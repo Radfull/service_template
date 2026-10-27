@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: ghcr.io/radfull/service_template:sha-PLACEHOLDER
+          image: market-service:hw03-23-20261027
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000

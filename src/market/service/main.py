@@ -2,13 +2,14 @@ import logging
 import uuid
 from contextlib import asynccontextmanager
 
-import joblib
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from market.config import settings
+from market.model_store import load_model
 from market.service import cruds
 from market.service.api.v1.model import model_router
 from market.service.db.db_helper import db_helper
@@ -21,13 +22,18 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     logging.info('Starting app')
 
-    bundle = joblib.load(settings.model_path)
-    app.state.pipeline = bundle["pipeline"]
-    app.state.meta = bundle["metadata"]
-    app.state.version = bundle["metadata"]["model_version"]
+    app.state.pipeline, app.state.meta, app.state.version = load_model()
+    logger.info(
+        "Loaded model source=%s name=%s alias=%s version=%s",
+        app.state.meta.get("model_source"),
+        app.state.meta.get("model_name"),
+        app.state.meta.get("model_alias"),
+        app.state.version,
+    )
 
     if db_helper is not None:
         async with db_helper.engine.begin() as conn:
+            await conn.execute(text("SELECT pg_advisory_xact_lock(123456789)"))
             await conn.run_sync(BaseDbModel.metadata.create_all)
     
     yield
@@ -114,11 +120,16 @@ def check_health():
             "service_version" : settings.service_version,
             "db_allow": db_helper is not None,
             "model_path": settings.model_path,
-            "log_level": settings.log_level,}
+            "log_level": settings.log_level,
+            "model_version" : app.state.version,
+            "model_source": app.state.meta.get("model_source"),
+            "model_name": app.state.meta.get("model_name"),
+            "model_alias": app.state.meta.get("model_alias"),
+            "model_run_id": app.state.meta.get("run_id")}
 
 @app.get("/ready")
 def check_ready():
-    if getattr(app.state, "pipeline", "None") is  None:
+    if getattr(app.state, "pipeline", None) is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
     
     return {"status": "ready", "db_allow": db_helper is not None}
