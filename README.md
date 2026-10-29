@@ -153,3 +153,6 @@ https://github.com/Radfull/service_template/actions/runs/38951405888/job/1171438
 ## 2.4.
 
 ![alt text](images/image11.png)
+![alt text](images/image12.png)
+Зеленый прогон:
+https://github.com/Radfull/service_template/actions/runs/40900709690/job/123543262150
