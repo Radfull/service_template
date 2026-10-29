@@ -16,7 +16,6 @@ def load_model():
         mlflow.set_registry_uri(settings.mlflow_tracking_uri)
         client = MlflowClient()
         mv = client.get_model_version_by_alias(settings.model_name, settings.model_alias)
-        # Resolve the alias once so the model, metadata and reported version agree.
         model_uri = f"models:/{settings.model_name}/{mv.version}"
         model = mlflow.sklearn.load_model(model_uri)
         with TemporaryDirectory() as temp_dir:

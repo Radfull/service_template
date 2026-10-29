@@ -19,6 +19,8 @@
 4) kubectl - это инструмент командной строки (CLI), который позволяет управлять кластерами Kubernetes.
     * kubectl apply -f [path to yaml file] - создаёт новые ресурсы или обновляет существующие, приводя кластер в состояние, заданное в файле. 
     * kubectl get [options] <resource_type>- для получения информации о ресурсах кластера.
+    * kubectl rollout restart deploy/<ваш‐сервис> - запускает перезапуск развёртывания в Kubernetes. Проще говоря: она даёт сигнал контроллеру Deployment плавно завершить работу текущих подов (pods) и создать вместо них новые.
+    * kubectl rollout status deploy/<ваш‐сервис> - показывает, на каком этапе сейчас обновление (rollout) вашего сервиса в Kubernetes
 
 5) k9s - это терминальный интерфейс для удобной работы с кластерами Kubernetes прямо из терминала.
     * k9s -n [namespace] - открыть интерфейс
@@ -131,3 +133,23 @@ Kubelet перезапускает контейнер с экспоненциа�
 https://github.com/Radfull/service_template/actions/runs/38951405888/job/117143871065
 
 Хороший запуск: https://github.com/Radfull/service_template/actions/runs/38957512356/job/117164419960
+
+# 3.
+
+## 2.1.
+
+![alt text](images/image7.png)
+![alt text](images/image8.png)
+
+## 2.2.
+
+![alt text](images/image9.png)
+![alt text](images/image10.png)
+
+## 2.3.
+
+![alt text](images/image11.png)
+
+## 2.4.
+
+![alt text](images/image11.png)

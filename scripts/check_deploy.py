@@ -1,4 +1,3 @@
-"""Validate registry-backed inference during the deploy smoke check."""
 
 import json
 import math

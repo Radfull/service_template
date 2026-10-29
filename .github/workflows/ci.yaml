@@ -162,12 +162,19 @@ jobs:
           cat pred.json
           echo
           echo "DB rows for request_id=$RID: $ROWS"
-          code=$(curl --silent --show-error --connect-timeout 5 --max-time 15 \
-            -o /dev/null -w '%{http_code}' -X POST \
+          echo "Checking invalid input: expected HTTP 422"
+          jq '.age = -1' tests/good.json > invalid.json
+          code=$(curl --silent --show-error --retry 3 --retry-delay 1 --retry-max-time 60 \
+            --connect-timeout 5 --max-time 15 \
+            -o invalid-response.json -w '%{http_code}' -X POST \
             -H "Host: $INGRESS_HOST" -H "Content-Type: application/json" \
-            --data-binary '{"age":-1,"work_experience":0,"family_size":1,"gender":0,"ever_married":0,"graduated":0,"spending_score":0}' \
+            --data-binary @invalid.json \
             "$INGRESS_URL/v1/predict")
-          [ "$code" = 422 ]
+          echo "Invalid input HTTP status: $code"
+          if [ "$code" != 422 ]; then
+            cat invalid-response.json
+            exit 1
+          fi
 
       - name: диагностика
         if: failure()
