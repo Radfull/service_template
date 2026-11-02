@@ -5,6 +5,7 @@
     * helm repo add traefik https://traefik.github.io/charts - добавление в helm репо Traefik
     * helm repo add prometheus-community https://prometheus-community.github.io/helm-charts - добавление в helm репо prometheus
     * helm upgrade -  в Kubernetes используется для обновления уже установленного релиза до новой версии чарта (chart) или изменения его конфигурации. Чарт - это пакет, содержащий все необходимые ресурсы для работы приложения в кластере.
+    * helm repo update - обновление установленных пакетов
 
 2) Kind (Kubernetes IN Docker) - инструмент с открытым исходным кодом. Позволяет развернуть локальный кластер Kubernetes.
     * kind get clusters - просмотр кластеров
@@ -156,3 +157,18 @@ https://github.com/Radfull/service_template/actions/runs/38951405888/job/1171438
 ![alt text](images/image12.png)
 Зеленый прогон:
 https://github.com/Radfull/service_template/actions/runs/40900709690/job/123543262150
+
+## 2.5
+
+![alt text](images/image13.png)
+![alt text](images/image14.png)
+![alt text](images/image15.png)
+![alt text](images/image16.png)
+![alt text](images/image17.png)
+
+# 2.6
+Результаты прогонов представлены в папке results.
+![alt text](images/image18.png)
+![alt text](images/image19.png)
+![alt text](images/image20.png)
+![alt text](results/hpa-events.txt)
