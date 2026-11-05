@@ -67,7 +67,7 @@ jobs:
       run:
         shell: bash
     env:
-      KIND_CLUSTER: market-cluster
+      KIND_CLUSTER: bad-cluster
       MODEL_NAME: market_model
       MODEL_ALIAS: champion
       INGRESS_HOST: market.localhost
