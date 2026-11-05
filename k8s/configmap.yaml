@@ -6,5 +6,5 @@ data:
   LOG_LEVEL: "INFO"
   MODEL_PATH: "artifacts/model_v1.0.joblib"
   MODEL_NAME: "market_model"
-  MODEL_ALIAS: "champion"
+  MODEL_ALIAS: "prod"
   MLFLOW_TRACKING_URI: "http://mlflow.mlops.svc.cluster.local:5000"
