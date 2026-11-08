@@ -198,3 +198,37 @@ https://github.com/Radfull/service_template/actions/runs/42462551977/job/1286749
 прогон исправленный: https://github.com/Radfull/service_template/actions/runs/42464727293/job/128805539502
 
 ошибка на шаге: smoke через Ingress. curl: (22) The requested URL returned error: 404
+
+# 3.
+
+### 1. Почему tests и build в облаке, а deploy локально?
+
+В `.github/workflows/ci.yaml` тесты используют отдельный psql, а сборка отправляет образ в GHCR: доступ к локальному кластеру им не нужен. Для текущего deploy нужен доступ к Docker и внутреннему API kind за NAT, которого у GitHub-hosted runner нет. Альтернативы - туннель до кластера или GitOps с агентом внутри него. локальный runner удобен для этого случа, потому что сам получает задания из GitHub и выполняет существующие команды рядом с кластером.
+
+### 2. Сеть kind, Docker socket и группа 0
+
+`--network kind` даёт runner доступ к узлу `market-cluster-control-plane` по внутренней сети: без неё используемые в CI kubeconfig и адрес Ingress будут недоступны. Сокет `/var/run/docker.sock` нужен для `docker pull`, получения kubeconfig через kind и `kind load docker-image`. без него runner не сможет работать с Docker хоста. `--group-add 0` даёт доступ к сокету, если его группа- GID 0 и разрешена групповая запись. без подходящих прав будет `permission denied`. Сама команда запуска runner в репозитории не сохранена, но в `platform/runner.Dockerfile` пользователь `runner` уже добавлен в группу `root`.
+
+### 3. Зачем dry-run и apply для Secret?
+
+В CI `kubectl create secret ... --dry-run=client -o yaml` только формирует манифест, а `kubectl apply -f -` создаёт или обновляет Secret. Поэтому повторный деплой работает с уже существующим `market-secrets`. Обычный `create secret` во второй раз завершился бы ошибкой `AlreadyExists` и остановил шаг.
+
+### 4. Challenger, champion и откат
+
+В `train.py` каждая новая версия получает `challenger`, а `champion`- только 1 модель или модель с `f1_macro > old_metric + MIN_GAIN` (по умолчанию запас равен 0, для демонстрации работы). Алиас позволяет менять рабочую модель без изменения номера версии в конфигурации: `load_model()` разрешает `champion` в конкретную версию при старте. Для отката модели нужно перевесить алиас и перезапустить поды. `rollout undo` возвращает предыдущий шаблон Deployment, но не возвращает прежнее значение алиаса в MLflow.
+
+### 5. Деплой до первого обучения
+
+В ConfigMap задан `MODEL_NAME: market_model`, поэтому при отсутствии модели или алиаса `champion` загрузка из MLflow выбросит исключение и запуск приложения завершится. Перехода к локальному файлу при такой ошибке нет: он используется только без `MODEL_NAME`. В k9s будут видны неготовые поды и повторные рестарты, затем `CrashLoopBackOff`. CI остановится по тайм-ауту `kubectl rollout status`, а шаг диагностики выведет ошибку MLflow из логов контейнера.
+
+### 6. Путь запроса к MLflow
+
+ Путь такой: `mlflow.localhost:80` → `127.0.0.1:80` → проброс Docker на порт узла kind `30080` → NodePort Traefik → Ingress с host `mlflow.localhost` → Service `mlflow:5000` в `mlops` → под MLflow на порту `5000`. `--allowed-hosts` разрешает нужные значения HTTP Host, а `--cors-allowed-origins` задаёт разрешённые браузерные Origin для CORS ([документация MLflow](https://mlflow.org/docs/latest/self-hosting/security/network/)). Проброс `hostPort: 80` задан в `platform/kind-config.yaml` при создании Docker-контейнера узла. Применение Ingress позже этот проброс не создаёт.
+
+### 7. Расчёт HPA и медленное уменьшение реплик
+
+На [скриншоте HPA](images/image20.png) при шести репликах загрузка равна `536%`, цель — `60%`: по формуле `ceil(6 × 536 / 60) = 54`, но `maxReplicas: 6`. Уменьшение задерживает стандартное окно стабилизации 300 секунд, тогда как для увеличения такого окна по умолчанию нет. 
+
+### 8. Git, DVC и восстановление данных модели N
+
+В Git лежат код, настройки DVC и `pipelines/data/data.csv.dvc` с хешем и размером; содержимое CSV хранится в кэше DVC и после `dvc push` — в локальном remote `../dvc-storage`. Для версии N нужно открыть связанный с ней run в MLflow и взять параметр `data_md5`, который записывает `train.py`. Затем через `git log -p -- pipelines/data/data.csv.dvc` найти коммит с таким MD5, восстановить указатель командой `git checkout <commit> -- pipelines/data/data.csv.dvc` и выполнить `uv run dvc pull`. MD5 восстановленного CSV должен совпасть с `data_md5`; без доступа к remote или сохранившемуся кэшу один файл `.dvc` данные не восстановит.
