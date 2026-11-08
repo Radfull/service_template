@@ -1,4 +1,9 @@
 # service_template
+
+# Quickstart
+
+...
+
 # Справочник
 
 1) Helm - пакетный менеджер для Kubernetes
@@ -172,3 +177,24 @@ https://github.com/Radfull/service_template/actions/runs/40900709690/job/1235432
 ![alt text](images/image19.png)
 ![alt text](images/image20.png)
 ![alt text](results/hpa-events.txt)
+
+# 2.7
+
+1. прогон с ошибкой:
+https://github.com/Radfull/service_template/actions/runs/42024803730/job/127249014787
+прогон исправленный: https://github.com/Radfull/service_template/actions/runs/42031109176/job/127257913969
+
+сбой на шаге сервис.
+
+2. прогон с ошибкой: https://github.com/Radfull/service_template/actions/runs/42461646103/job/128672496539
+
+прогон исправленный:
+https://github.com/Radfull/service_template/actions/runs/42462551977/job/128674987992
+
+ошибка на шаге: доступ к локальному кластеру. По логам все понятно: ERROR: could not locate any control plane nodes for cluster named 'bad-cluster'. Use the --name option to select a different cluster
+
+3. прогон с ошибкой: https://github.com/Radfull/service_template/actions/runs/42463599540/job/128678131993
+
+прогон исправленный: https://github.com/Radfull/service_template/actions/runs/42464727293/job/128805539502
+
+ошибка на шаге: smoke через Ingress. curl: (22) The requested URL returned error: 404
