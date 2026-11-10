@@ -232,3 +232,10 @@ https://github.com/Radfull/service_template/actions/runs/42462551977/job/1286749
 ### 8. Git, DVC и восстановление данных модели N
 
 В Git лежат код, настройки DVC и `pipelines/data/data.csv.dvc` с хешем и размером; содержимое CSV хранится в кэше DVC и после `dvc push` — в локальном remote `../dvc-storage`. Для версии N нужно открыть связанный с ней run в MLflow и взять параметр `data_md5`, который записывает `train.py`. Затем через `git log -p -- pipelines/data/data.csv.dvc` найти коммит с таким MD5, восстановить указатель командой `git checkout <commit> -- pipelines/data/data.csv.dvc` и выполнить `uv run dvc pull`. MD5 восстановленного CSV должен совпасть с `data_md5`; без доступа к remote или сохранившемуся кэшу один файл `.dvc` данные не восстановит.
+
+
+# 4.
+
+## 1.
+![alt text](images/image21.png)
+

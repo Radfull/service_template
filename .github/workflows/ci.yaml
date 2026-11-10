@@ -2,6 +2,18 @@ name: ci
 on:
   push: {branches: [main]}
   pull_request:
+  workflow_dispatch:
+    inputs:
+      kind_cluster:
+        description: "Имя kind-кластера на машине runner"
+        required: true
+        default: market-cluster
+        type: string
+      runner_label:
+        description: "Метка runner, подключённого к этому кластеру"
+        required: true
+        default: kind
+        type: string
 
 jobs:
   tests:
@@ -55,8 +67,8 @@ jobs:
 
   deploy:
     needs: build
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: [self-hosted, kind]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, "${{ inputs.runner_label }}"]
     timeout-minutes: 15
     concurrency:
       group: market-local-deploy
@@ -67,7 +79,7 @@ jobs:
       run:
         shell: bash
     env:
-      KIND_CLUSTER: market-cluster
+      KIND_CLUSTER: ${{ inputs.kind_cluster }}
       MODEL_NAME: market_model
       MODEL_ALIAS: champion
       INGRESS_HOST: market.localhost
@@ -101,7 +113,10 @@ jobs:
         run: |
           set -euo pipefail
           docker pull "$IMAGE"
-          kind load docker-image "$IMAGE" --name "$KIND_CLUSTER"
+          ARCH=$(docker version --format '{{.Server.Arch}}')
+          docker save --platform "linux/$ARCH" "$IMAGE" -o "$RUNNER_TEMP/market-image.tar"
+          kind load image-archive "$RUNNER_TEMP/market-image.tar" --name "$KIND_CLUSTER"
+          rm -f "$RUNNER_TEMP/market-image.tar"
 
       - name: подтягиваем секреты
         env:

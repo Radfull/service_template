@@ -4,6 +4,12 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .env
+tmp/
+.quickstart-kubeconfig
+.dvc/cache/
+.dvc/tmp/
+.dvc/config.local
+pipelines/data/*.csv
 data/
 k8s/
 tests/
