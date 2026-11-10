@@ -6,6 +6,8 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from prometheus_client import Gauge
+from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy import text
 
 from market.config import settings
@@ -16,6 +18,9 @@ from market.service.db.db_helper import db_helper
 from market.service.db.models.base_db_model import BaseDbModel
 from market.service.schemas.predictions import PredictionCreate
 
+MODEL_INFO = Gauge("market_model_info", "Model loaded in this pod", ["version"])
+LATENCY_BUCKETS = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1)
+
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
@@ -23,6 +28,9 @@ async def lifespan(app: FastAPI):
     logging.info('Starting app')
 
     app.state.pipeline, app.state.meta, app.state.version = load_model()
+    MODEL_INFO.clear()
+    MODEL_INFO.labels(app.state.version).set(1)
+
     logger.info(
         "Loaded model source=%s name=%s alias=%s version=%s",
         app.state.meta.get("model_source"),
@@ -46,6 +54,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Market ML Service",
               version = settings.service_version,
               lifespan=lifespan)
+
+Instrumentator().instrument(app, latency_lowr_buckets=LATENCY_BUCKETS).expose(app)
 
 # routers
 app.include_router(model_router)

@@ -1,0 +1,55 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: market-service
+  namespace: default
+spec:
+  selector:
+    matchLabels: {app: market}
+  endpoints:
+    - {port: http, path: /metrics, interval: 15s}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: market-dashboard
+  namespace: monitoring
+  labels: {grafana_dashboard: "1"}
+data:
+  market.json: |
+    {
+      "uid": "market-service", "title": "Market service", "schemaVersion": 39,
+      "refresh": "10s", "time": {"from": "now-30m", "to": "now"},
+      "panels": [
+        {
+          "id": 1, "type": "timeseries", "title": "Model version by pod",
+          "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"refId": "A", "expr": "market_model_info{namespace=\"default\"}", "legendFormat": "{{pod}} v{{version}}"}]
+        },
+        {
+          "id": 2, "type": "timeseries", "title": "Predict RPS",
+          "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "reqps"}},
+          "targets": [{"refId": "A", "expr": "sum(rate(http_requests_total{namespace=\"default\",handler=\"/v1/predict\"}[1m]))"}]
+        },
+        {
+          "id": 3, "type": "timeseries", "title": "Predict latency",
+          "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "s"}},
+          "targets": [
+            {"refId": "A", "expr": "histogram_quantile(0.50, sum by(le)(rate(http_request_duration_seconds_bucket{namespace=\"default\",handler=\"/v1/predict\"}[1m])))", "legendFormat": "p50"},
+            {"refId": "B", "expr": "histogram_quantile(0.95, sum by(le)(rate(http_request_duration_seconds_bucket{namespace=\"default\",handler=\"/v1/predict\"}[1m])))", "legendFormat": "p95"}
+          ]
+        },
+        {
+          "id": 4, "type": "timeseries", "title": "Predicted segments",
+          "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "reqps"}},
+          "targets": [{"refId": "A", "expr": "sum by(segment)(rate(market_predictions_total{namespace=\"default\"}[1m]))", "legendFormat": "{{segment}}"}]
+        }
+      ]
+    }

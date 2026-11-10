@@ -12,6 +12,11 @@ COPY src/ src/
 RUN uv sync --no-dev
 
 COPY artifacts/ artifacts/
+COPY .dvc/config .dvc/config
+COPY pipelines/data/*.dvc pipelines/data/
+RUN uv run --no-sync dvc config --local core.no_scm true
+ARG GIT_SHA=local
+ENV GIT_SHA=$GIT_SHA
 
 EXPOSE 8000
 CMD ["uv", "run", "--no-sync", "uvicorn", "market.service.main:app", "--host", "0.0.0.0", "--port", "8000"]

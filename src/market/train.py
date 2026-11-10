@@ -18,6 +18,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
+from market.data import EXPORT
+
 DATA_PATH = Path(os.getenv("DATA_PATH", "pipelines/data/data.csv"))
 MODEL_NAME = os.getenv("MODEL_NAME", "market_model")
 EXPERIMENT = os.getenv("MLFLOW_EXPERIMENT", "market")
@@ -41,15 +43,7 @@ def get_file_md5(path: Path) -> str:
 
 
 def load_and_validate(path: Path) -> pd.DataFrame:
-    df = pd.read_csv(path)
-    missing = set(NUM_FEATURES + CAT_FEATURES + [TARGET]) - set(df.columns)
-    if missing:
-        raise ValueError(f"в данных нет колонок: {sorted(missing)}, представлено {df.columns}")
-    if len(df) < 100:
-        raise ValueError(f"слишком мало строк: {len(df)}")
-    if not set(df[TARGET].unique()) <= set(CLASS_LABELS.keys()):
-        raise ValueError(f"неожиданные значения таргета: {df[TARGET].unique()[:5]}")
-    
+    df = EXPORT.validate(pd.read_csv(path), lazy=True)
     df["target"] = df[TARGET].map(CLASS_LABELS)
     return df
 
@@ -117,7 +111,8 @@ def main() -> dict:
             "C" : C, 
             "seed": SEED, 
             "data_path": str(DATA_PATH),
-            "data_md5": data_md5
+            "data_md5": data_md5,
+            "git_sha": os.getenv("GIT_SHA", "local")
         })
         
         mlflow.log_metrics({"f1_macro": f1_macro})
