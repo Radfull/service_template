@@ -239,3 +239,9 @@ https://github.com/Radfull/service_template/actions/runs/42462551977/job/1286749
 ## 1.
 ![alt text](images/image21.png)
 
+# 2.
+
+# 3.
+![alt text](images/image22.png)
+![alt text](images/image23.png)
+

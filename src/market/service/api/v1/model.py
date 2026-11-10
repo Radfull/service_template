@@ -3,12 +3,15 @@ import uuid
 
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Request
+from prometheus_client import Counter
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from market.service import cruds
 from market.service.db.db_helper import get_session
 from market.service.schemas.features import Features
 from market.service.schemas.predictions import PredictionCreate, PredictionRead
+
+PREDICTIONS = Counter("market_predictions_total", "Predictions by segment", ["segment"])
 
 model_router = APIRouter(prefix="/v1", tags=["model"])
 
@@ -46,6 +49,7 @@ async def predict(
             response_status=200,                                     
         ),
     )
+    PREDICTIONS.labels(segmentation).inc()
 
     return PredictionRead(                                        
         request_id=request_id,

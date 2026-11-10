@@ -2,10 +2,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: market-service
+  labels: {app: market}
 spec:
   type: ClusterIP
   selector:
     app: market
   ports:
-    - port: 80
+    - name: http
+      port: 80
       targetPort: 8000
