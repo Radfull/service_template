@@ -19,7 +19,7 @@ from market.service.db.models.base_db_model import BaseDbModel
 from market.service.schemas.predictions import PredictionCreate
 
 MODEL_INFO = Gauge("market_model_info", "Model loaded in this pod", ["version"])
-LATENCY_BUCKETS = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1)
+LATENCY_BUCKETS = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 3, 5)
 
 logger = logging.getLogger(__name__)
 
