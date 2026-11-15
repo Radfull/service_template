@@ -23,7 +23,7 @@ from market.data import EXPORT
 DATA_PATH = Path(os.getenv("DATA_PATH", "pipelines/data/data.csv"))
 MODEL_NAME = os.getenv("MODEL_NAME", "market_model")
 EXPERIMENT = os.getenv("MLFLOW_EXPERIMENT", "market")
-MIN_GAIN = float(os.getenv("GATE_MIN_GAIN", "0.0"))
+MIN_GAIN = float(os.getenv("GATE_MIN_GAIN", "0.005"))
 SEED = 42
 SKOPS_TRUSTED = ["numpy.dtype", "sklearn.compose._column_transformer._RemainderColsList"]
 
@@ -112,7 +112,8 @@ def main() -> dict:
             "seed": SEED, 
             "data_path": str(DATA_PATH),
             "data_md5": data_md5,
-            "git_sha": os.getenv("GIT_SHA", "local")
+            "git_sha": os.getenv("GIT_SHA", "local"),
+            "gate_min_gain": MIN_GAIN
         })
         
         mlflow.log_metrics({"f1_macro": f1_macro})
