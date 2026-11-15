@@ -76,6 +76,16 @@ helm upgrade --install traefik traefik/traefik --version 41.6.0 \
   -n traefik --create-namespace -f platform/traefik-values.yaml --wait --timeout=15m
 helm upgrade --install monitoring prometheus-community/kube-prometheus-stack --version 91.5.2 \
   -n monitoring --create-namespace -f platform/monitoring-values.yaml --wait --timeout=15m
+
+  echo "== metrics-server для HPA"
+helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
+helm repo update metrics-server
+helm upgrade --install metrics-server metrics-server/metrics-server \
+  --version 3.14.0 \
+  -n kube-system \
+  -f platform/metrics-server-values.yaml \
+  --wait --timeout=5m
+  
 kubectl apply -f platform/ingress.yaml
 
 echo "== ждём поды"
