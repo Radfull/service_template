@@ -1,9 +1,24 @@
 # service_template
 
 # Quickstart
+Все команды ниже в Git Bash, с запущенным Docker Desktop. Установлены uv, kind, kubectl, helm, curl
 
-...
+```
+git clone https://github.com/Radfull/service_template.git service-hw4
+cd service-hw4
+uv sync --frozen
+bash platform/up.sh
 
+export AWS_ACCESS_KEY_ID=dvcadmin
+export AWS_SECRET_ACCESS_KEY=dvc-secret-123
+export AWS_DEFAULT_REGION=us-east-1
+export MLFLOW_TRACKING_URI=http://mlflow.localhost
+export MODEL_NAME=market_model
+export NO_PROXY='*'
+
+uv run python scripts/bootstrap_data.py
+uv run dvc push -r laptop
+```
 # Справочник
 
 1) Helm - пакетный менеджер для Kubernetes
