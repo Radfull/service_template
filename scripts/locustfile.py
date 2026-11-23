@@ -18,6 +18,7 @@ class MarketUser(HttpUser):
 
     def on_start(self):
         self.client.trust_env = False
+        self.client.headers["Host"] = "market.localhost"
 
     @task
     def predict(self):

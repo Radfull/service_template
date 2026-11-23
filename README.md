@@ -251,12 +251,15 @@ https://github.com/Radfull/service_template/actions/runs/42462551977/job/1286749
 
 # 4.
 
-## 1.
 ![alt text](images/image21.png)
-
-# 2.
-
-# 3.
 ![alt text](images/image22.png)
 ![alt text](images/image23.png)
+![alt text](images/image24.png)
+![alt text](images/image25.png)
+![alt text](images/image26.png)
+![alt text](images/image27.png)
+![alt text](images/image28.png)
+![alt text](images/image29.png)
+
+зеленый прогон: https://github.com/Radfull/service_template/actions/runs/45141507483/job/137580801784
 
